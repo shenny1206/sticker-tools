@@ -1,1 +1,2051 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sticker Cutter</title>
+  <style>
+    :root{
+      --bg:#0d0f12;--panel:#171a1f;--line:#2a2f38;--text:#f5f7fa;
+      --muted:#9ca3af;--accent:#b7ff3c;--danger:#ff6b6b;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif}
+    header{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center;justify-content:space-between}
+    h1{font-size:20px;margin:0}
+    .badge{font-size:12px;color:#111;background:var(--accent);padding:5px 8px;border-radius:999px;font-weight:700}
+    main{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(300px,.8fr);gap:16px;padding:16px}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+    .upload{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+    button,.file-label{border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
+    button.primary,.file-label{background:var(--accent);color:#111}
+    button.secondary{background:#272c34;color:var(--text)}
+    button:disabled{opacity:.45;cursor:not-allowed}
+    input[type=file]{display:none}
+    .stage{position:relative;background:#08090b;border-radius:12px;overflow:hidden;aspect-ratio:16/9;max-height:72vh}
+    video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
+    #overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:auto;touch-action:none;cursor:crosshair}
+    .controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+    input[type=range]{width:100%}
+    input[type=number],select{width:100%;background:#0f1216;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .status{padding:10px;border-radius:10px;background:#101318;border:1px solid var(--line);font-size:13px;line-height:1.5}
+    .preview-wrap{background:repeating-conic-gradient(#d9d9d9 0 25%,#fff 0 50%) 50%/18px 18px;border-radius:12px;overflow:hidden;aspect-ratio:320/270}
+    #preview{width:100%;height:100%;object-fit:contain}
+    .small{font-size:12px;color:var(--muted)}
+    .section{margin-top:14px}
+    .section h2{font-size:14px;margin:0 0 10px}
+    .progress{height:10px;border-radius:999px;background:#0f1216;overflow:hidden;border:1px solid var(--line)}
+    .progress>div{height:100%;width:0;background:var(--accent)}
+    .tool-tabs{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:6px;
+      padding:5px;
+      margin-top:14px;
+      background:#101318;
+      border:1px solid var(--line);
+      border-radius:12px;
+    }
+    .tool-tab{
+      background:transparent;
+      color:var(--muted);
+      border:0;
+      border-radius:9px;
+      padding:10px 12px;
+    }
+    .tool-tab.active{
+      background:var(--accent);
+      color:#111;
+    }
+    .tool-panel{display:none}
+    .tool-panel.active{display:block}
+    .cell-nav{
+      display:grid;
+      grid-template-columns:auto 1fr auto;
+      gap:8px;
+      align-items:end;
+      margin-top:10px;
+    }
+    .cell-nav button{
+      min-width:46px;
+      padding:10px 12px;
+      font-size:18px;
+    }
+    .cell-counter{
+      text-align:center;
+      color:var(--muted);
+      font-size:12px;
+      margin-top:6px;
+    }
+    .segmented{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:6px;
+      padding:5px;
+      background:#101318;
+      border:1px solid var(--line);
+      border-radius:12px;
+      margin-top:8px;
+    }
+    .segmented button{
+      background:transparent;
+      color:var(--muted);
+      border:0;
+      border-radius:9px;
+      padding:10px 8px;
+    }
+    .segmented button.active{
+      background:var(--accent);
+      color:#111;
+    }
+    .select-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+    .select-cell{background:#101318;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px 6px;font-weight:700}
+    .select-cell.active{background:var(--accent);color:#111;border-color:var(--accent)}
+    .select-cell:disabled{opacity:.35}
+    @media(max-width:900px){main{grid-template-columns:1fr}.controls{grid-template-columns:1fr 1fr}}
+  
+.preset-btn.active{background:var(--accent)!important;color:#111!important;border-color:var(--accent)!important}
 
+
+/* v1.5 product polish */
+.creator-notice{
+  background:#11151a;
+  border-bottom:1px solid var(--line);
+  color:var(--muted);
+  font-size:12px;
+  text-align:center;
+  padding:8px 14px;
+}
+.product-title-wrap{display:flex;flex-direction:column;gap:3px}
+.product-subtitle{color:var(--muted);font-size:14px;font-weight:600}
+.product-maker{color:var(--muted);font-size:12px;margin-top:2px}
+.preset-buttons{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.preset-buttons .preset-btn{width:100%;min-height:44px}
+.preset-btn.active{background:var(--accent)!important;color:#111!important;border-color:var(--accent)!important}
+.whats-new{
+  max-width:1080px;
+  margin:10px auto 0;
+  padding:0 20px;
+}
+.whats-new details{
+  border:1px solid var(--line);
+  background:var(--panel);
+  border-radius:14px;
+  overflow:hidden;
+}
+.whats-new summary{
+  cursor:pointer;
+  list-style:none;
+  padding:12px 14px;
+  font-weight:800;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.whats-new summary::-webkit-details-marker{display:none}
+.whats-new summary::after{content:'＋';color:var(--accent);font-size:18px}
+.whats-new details[open] summary::after{content:'−'}
+.whats-new-content{padding:0 14px 14px;color:var(--muted);font-size:13px;line-height:1.75}
+.whats-new-content strong{color:var(--text)}
+.next-step-card .optional-label{
+  display:inline-flex;
+  align-items:center;
+  padding:4px 8px;
+  border-radius:999px;
+  background:rgba(183,255,60,.12);
+  color:var(--accent);
+  font-size:12px;
+  font-weight:800;
+  margin-bottom:6px;
+}
+.site-footer{
+  margin-top:40px;
+  padding:24px 16px;
+  text-align:center;
+  color:var(--muted);
+  font-size:13px;
+  border-top:1px solid rgba(255,255,255,.08)
+}
+.site-footer .footer-title{font-weight:700;color:var(--text)}
+.site-footer .footer-line{margin-top:6px}
+.site-footer .privacy-line{margin-top:10px;font-size:12px}
+@media(max-width:620px){
+  .preset-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .whats-new{padding:0 14px}
+}
+
+
+.product-title-line{font-size:1.35rem;font-weight:700;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.product-maker-inline{opacity:.7;font-weight:400}
+@media(min-width:768px){.product-title-line{flex-wrap:nowrap}}
+
+</style>
+
+
+
+
+
+<style id="sticker-tools-nav-style">
+.sticker-tools-header{
+  max-width:1080px;
+  margin:0 auto;
+  padding:18px 20px 4px;
+}
+.sticker-tools-brand{
+  color:var(--muted,#9ca3af);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.sticker-tools-nav{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:6px;
+  flex-wrap:wrap;
+}
+.sticker-tools-nav a,
+.sticker-tools-nav span{
+  position:relative;
+  color:var(--muted,#9ca3af);
+  text-decoration:none;
+  font-weight:800;
+  padding:7px 0 9px;
+}
+.sticker-tools-nav a:hover{color:var(--text,#f5f7fa)}
+.sticker-tools-nav .current{color:var(--accent,#b7ff3c)}
+.sticker-tools-nav .current::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:2px;
+  height:2px;
+  border-radius:999px;
+  background:var(--accent,#b7ff3c);
+}
+.sticker-tools-dot{
+  color:var(--line,#2a2f38);
+  user-select:none;
+}
+.next-step-card{
+  display:none;
+  margin-top:16px;
+  padding:16px;
+  border:1px solid var(--line,#2a2f38);
+  border-radius:16px;
+  background:var(--panel,#171a1f);
+}
+.next-step-card.show{display:block}
+.next-step-card h3{margin:0 0 6px;font-size:16px}
+.next-step-card p{margin:6px 0;color:var(--muted,#9ca3af)}
+.next-step-card a{
+  display:inline-flex;
+  margin-top:10px;
+  padding:11px 14px;
+  border-radius:12px;
+  background:var(--accent,#b7ff3c);
+  color:#111;
+  font-weight:800;
+  text-decoration:none;
+}
+@media(max-width:480px){
+  .sticker-tools-header{padding:14px 14px 2px}
+  .sticker-tools-nav{gap:8px}
+  .sticker-tools-nav a,
+  .sticker-tools-nav span{font-size:13px}
+}
+
+.preset-btn.active{background:var(--accent)!important;color:#111!important;border-color:var(--accent)!important}
+
+.product-title-line{font-size:1.35rem;font-weight:700;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.product-maker-inline{opacity:.7;font-weight:400}
+@media(min-width:768px){.product-title-line{flex-wrap:nowrap}}
+
+</style>
+
+</head>
+<body>
+
+<header class="sticker-tools-header">
+  <div class="sticker-tools-brand">Sticker Tools</div>
+  <nav class="sticker-tools-nav" aria-label="Sticker tools">
+    <span class="current">Sticker Cutter</span>
+    <span class="sticker-tools-dot">·</span>
+    <a href="https://winter-cloud-7445.shennyyces.workers.dev" target="_blank" rel="noopener">Sticker Organizer</a>
+  </nav>
+</header>
+<header>
+  <div class="product-title-wrap">
+    <div class="product-title-line"><strong>Sticker Cutter</strong><span>｜你的貼圖小幫手｜<span class="product-maker-inline">Made by 셰니 ZLX</span></span></div>
+  </div>
+</header>
+<section class="whats-new">
+  <details id="whatsNewPanel" open>
+    <summary>Version 1.5 更新</summary>
+    <div class="whats-new-content">
+      <strong>這次更新</strong><br>
+      版型改為按鈕選擇｜自動偵測更穩定｜匯出完成提示更清楚｜Sticker Organizer 改為選用的進階整理
+    </div>
+  </details>
+</section>
+
+
+<main>
+  <section class="panel">
+    <div class="upload">
+      <label class="file-label" for="videoFile">匯入圖片或影片</label>
+      <input id="videoFile" type="file" accept="image/png,image/jpeg,image/webp,video/*" />
+      <button id="playBtn" class="secondary" disabled>播放 / 暫停</button>
+      <button id="detectBtn" class="secondary" disabled style="display:none">偵測背景</button>
+    </div>
+    <div class="section">
+      <h2>切割版型</h2>
+      <div class="row">
+        <div style="flex:1;min-width:260px">
+
+<div id="presetButtons" class="preset-buttons">
+<button type="button" class="secondary preset-btn" data-value="3x3">3×3</button>
+<button type="button" class="secondary preset-btn active" data-value="4x3">4×3</button>
+<button type="button" class="secondary preset-btn" data-value="4x4">4×4</button>
+<button type="button" class="secondary preset-btn" data-value="custom">自訂</button>
+</div>
+<input id="gridPreset" type="hidden" value="4x3">
+</div>
+<label id="customColsWrap"  style="flex:1;min-width:120px;display:none">欄數
+          <input id="customCols" type="number" min="1" max="10" value="4">
+        </label>
+        <label id="customRowsWrap" style="flex:1;min-width:120px;display:none">列數
+          <input id="customRows" type="number" min="1" max="10" value="3">
+        </label>
+      </div>
+      <div id="gridHelp" class="small" style="margin-top:8px">
+        4 欄會有 5 條垂直線，3 列會有 4 條水平線，每條線都能獨立拖曳。
+      </div>
+    </div>
+
+    <div class="stage" id="stage">
+      <video id="video" playsinline muted></video>
+      <img id="sourceImage" alt="" style="display:none;width:100%;height:100%;object-fit:contain;background:#000">
+      <canvas id="overlay"></canvas>
+    </div>
+
+    <div class="section">
+      <div class="row">
+        <button id="autoDetectGridBtn" class="secondary" disabled>自動偵測貼圖位置</button>
+        <button id="resetGridBtn" class="secondary">重設平均格線</button>
+      </div>
+      <div id="gridDetectStatus" class="small" style="margin-top:8px">
+        自動偵測只會在平均格線附近微調，避免格線錯位；完成後仍可手動拖曳。
+      </div>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <div id="previewModeHint" class="small" style="margin-bottom:8px">
+      目前格子預覽
+    </div>
+    <div id="singlePreviewWrap" class="preview-wrap">
+      <canvas id="preview" width="320" height="270"></canvas>
+    </div>
+
+    <div id="cellNavSection" class="section">
+      <h2>目前格子</h2>
+      <div class="cell-nav">
+        <button id="prevCellBtn" class="secondary" type="button" aria-label="上一格">‹</button>
+        <label>選擇格子
+          <select id="cellSelect"></select>
+        </label>
+        <button id="nextCellBtn" class="secondary" type="button" aria-label="下一格">›</button>
+      </div>
+      <div id="cellCounter" class="cell-counter">第 1 格</div>
+    </div>
+
+    <div class="tool-tabs" role="tablist" aria-label="編輯工具">
+      <button id="adjustTab" class="tool-tab active" type="button">大小與位置</button>
+      <button id="backgroundTab" class="tool-tab" type="button">去背</button>
+      <button id="selectionTab" class="tool-tab" type="button">選擇檔案</button>
+    </div>
+
+    <div id="adjustPanel" class="tool-panel active">
+
+    <div class="section">
+      <h2>裁切範圍微調</h2>
+      <div class="controls">
+        <label>左右移動 <span id="cellXValue">0%</span>
+          <input id="cellX" type="range" min="-12" max="12" step="0.1" value="0">
+        </label>
+        <label>上下移動 <span id="cellYValue">0%</span>
+          <input id="cellY" type="range" min="-12" max="12" step="0.1" value="0">
+        </label>
+        <label>調整寬度 <span id="cellWValue">0%</span>
+          <input id="cellW" type="range" min="-12" max="12" step="0.1" value="0">
+        </label>
+        <label>調整高度 <span id="cellHValue">0%</span>
+          <input id="cellH" type="range" min="-12" max="12" step="0.1" value="0">
+        </label>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>角色大小與位置</h2>
+      <div class="controls">
+        <label>角色縮放 <span id="contentScaleValue">100%</span>
+          <input id="contentScale" type="range" min="50" max="180" step="1" value="100">
+        </label>
+        <label>角色左右 <span id="contentXValue">0%</span>
+          <input id="contentX" type="range" min="-40" max="40" step="1" value="0">
+        </label>
+        <label>角色上下 <span id="contentYValue">0%</span>
+          <input id="contentY" type="range" min="-40" max="40" step="1" value="0">
+        </label>
+      </div>
+      <div class="small" style="margin-top:8px">
+        角色會保持原始比例並自動置中，只調整大小和位置，不會被拉寬或壓扁。
+      </div>
+    </div>
+
+    <div class="section">
+      <button id="resetCellBtn" class="secondary" style="width:100%">重設目前格子</button>
+    </div>
+
+
+    </div>
+
+    <div id="backgroundPanel" class="tool-panel">
+      <div class="small" style="margin-top:12px">
+        可使用上方左右按鈕切換格子，再單獨調整目前格子的去背設定。
+      </div>
+    <div class="section">
+      <h2>去背</h2>
+
+      <div>
+        <div class="small">是否去背</div>
+        <div class="segmented">
+          <button id="removeBgOffBtn" type="button" class="active">不去背</button>
+          <button id="removeBgOnBtn" type="button">開啟去背</button>
+        </div>
+        <select id="removeBg" style="display:none" aria-hidden="true">
+          <option value="off" selected>不去背</option>
+          <option value="on">開啟去背</option>
+        </select>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <button id="detectBtnInline" class="secondary" style="flex:1" disabled>自動偵測背景</button>
+        <button id="eyedropperBtn" class="secondary" style="flex:1" disabled>滴管選擇背景色</button>
+      </div>
+
+      <div id="bgStatus" class="status" style="margin-top:10px">
+        尚未選擇背景色
+        <br><span class="small">可自動偵測，或用滴管點選預覽中的背景。</span>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <div style="display:flex;align-items:center;gap:8px;flex:1">
+          <span class="small">目前背景色</span>
+          <span id="bgColorSwatch" style="display:inline-block;width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:#fff"></span>
+        </div>
+      </div>
+
+      <div style="margin-top:10px">
+        <div class="small">調整範圍</div>
+        <div class="segmented">
+          <button id="scopeAllBtn" type="button" class="active">全部格子</button>
+          <button id="scopeCurrentBtn" type="button">只調整這一格</button>
+        </div>
+        <select id="backgroundScope" style="display:none" aria-hidden="true">
+          <option value="all" selected>套用全部格子</option>
+          <option value="current">只調整目前格子</option>
+        </select>
+      </div>
+
+      <label style="margin-top:10px">去背範圍 <span id="toleranceValue">38</span>
+        <input id="tolerance" type="range" min="5" max="120" value="38">
+      </label>
+      <div id="toleranceHint" class="small" style="margin-top:6px">
+        往右會移除更多接近背景的顏色，往左會保留更多細節。
+      </div>
+
+      <button id="resetCurrentBgBtn" class="secondary" type="button" style="width:100%;margin-top:10px;display:none">
+        恢復使用全部格子的去背設定
+      </button>
+    </div>
+
+
+    </div>
+
+    <div id="selectionPanel" class="tool-panel">
+    <div class="section controls">
+      <label>匯出品質
+        <select id="quality">
+          <option value="auto" selected>自動（推薦）</option>
+          <option value="high">較流暢</option>
+          <option value="small">較小檔案</option>
+        </select>
+      </label>
+      <label>最長秒數
+        <select id="maxDuration">
+          <option>2</option><option>3</option><option selected>4</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="section">
+      <h2>選擇要輸出的格子</h2>
+      <div id="selectionHint" class="status">請選擇要加入的格子</div>
+      <div id="selectionGrid" class="select-grid"></div>
+      <div class="row" style="margin-top:10px">
+        <button id="selectAllBtn" class="secondary" style="flex:1">全選</button>
+        <button id="clearSelectionBtn" class="secondary" style="flex:1">取消全選</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>貼圖整理器</h2>
+      <label>目標張數
+        <select id="targetCount">
+          <option value="0" selected>不限制</option>
+          <option value="8">8 張</option>
+          <option value="16">16 張</option>
+          <option value="24">24 張</option>
+          <option id="target32Option" value="32">32 張（僅靜態貼圖）</option>
+          <option id="target40Option" value="40">40 張（僅靜態貼圖）</option>
+          <option value="custom">自訂</option>
+        </select>
+        <span id="targetTypeHint" class="small">匯入檔案後會依圖片或影片顯示適用張數</span>
+      </label>
+      <label id="customTargetWrap" style="display:none;margin-top:10px">自訂張數
+        <input id="customTargetCount" type="number" min="1" max="200" value="12">
+      </label>
+      <label style="display:none">
+      </label>
+      <div id="projectStatus" class="status" style="margin-top:10px">目前已加入 0 / 24 張</div>
+      <div class="row" style="margin-top:10px">
+        <button id="addToProjectBtn" class="secondary" style="flex:1" disabled>加入所選格子</button>
+        <button id="clearProjectBtn" class="secondary" style="flex:1">清空專案</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <button id="exportBtn" class="primary" style="width:100%" disabled>匯出貼圖</button>
+      <div class="progress" style="margin-top:10px"><div id="progressBar"></div></div>
+      <div id="exportStatus" class="small" style="margin-top:8px">先把目前影片加入專案，再累積到 8、16 或 24 張。</div>
+<div id="nextStepCard" class="next-step-card">
+  <h3>匯出完成</h3>
+  <p id="nextStepFile">已建立貼圖 ZIP</p>
+  <p><strong style="color:var(--text)">你的貼圖已經可以直接使用</strong></p>
+  <div class="optional-label">選用功能</div>
+  <p><strong style="color:var(--text)">想進一步整理貼圖？</strong></p>
+  <p>需要自訂封面、Main / Tab、重新排序或確認動態貼圖時，再使用 Sticker Organizer</p>
+  <a href="https://winter-cloud-7445.shennyyces.workers.dev" target="_blank" rel="noopener">進階整理貼圖</a>
+  <p style="margin-top:12px">不需要調整的話，剛下載的 ZIP 就可以直接使用</p>
+</div>
+
+    </div>
+    </div>
+  </aside>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/upng-js@2.1.0/UPNG.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script>
+const video = document.getElementById('video');
+const sourceImage = document.getElementById('sourceImage');
+const overlay = document.getElementById('overlay');
+const octx = overlay.getContext('2d');
+const preview = document.getElementById('preview');
+const pctx = preview.getContext('2d', {willReadFrequently:true});
+
+const state = {
+  selected: 0,
+  bg:[255,255,255],
+  cols:4,
+  rows:3,
+  verticals:[0,0.25,0.5,0.75,1],
+  horizontals:[0,1/3,2/3,1],
+  dragging:null,
+  cells:Array.from({length:12},()=>({
+    x:0,y:0,w:0,h:0,scale:1,contentX:0,contentY:0,
+    bgTolerance:null,bgColor:null
+  })),
+  projectItems:[],
+  selectedCells:Array.from({length:12},()=>true),
+  sourceType:null,
+  sourceImage:null,
+  sourceName:'',
+  eyedropperActive:false,
+  activeToolTab:'adjust'
+};
+
+function rebuildCellSelect(){
+  cellSelect.innerHTML='';
+  const total=state.cols*state.rows;
+
+  for(let i=0;i<total;i++){
+    const opt=document.createElement('option');
+    opt.value=i;
+    opt.textContent=`第 ${i+1} 格`;
+    cellSelect.appendChild(opt);
+  }
+
+  if(state.selected>=total) state.selected=0;
+  cellSelect.value=state.selected;
+  updateCellNavigation();
+}
+
+
+function syncStageAspect(){
+  if(!sourceReady())return;
+
+  const w=sourceWidth();
+  const h=sourceHeight();
+
+  if(w>0 && h>0){
+    stage.style.aspectRatio=`${w} / ${h}`;
+  }
+
+  resizeOverlay();
+}
+
+function resizeOverlay(){
+  const r=overlay.getBoundingClientRect();
+  overlay.width=Math.round(r.width*devicePixelRatio);
+  overlay.height=Math.round(r.height*devicePixelRatio);
+  octx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  drawOverlay();
+}
+window.addEventListener('resize',resizeOverlay);
+
+function getBaseCells(){
+  const total=state.cols*state.rows;
+  return Array.from({length:total},(_,i)=>{
+    const c=i%state.cols;
+    const r=Math.floor(i/state.cols);
+    const adj=state.cells[i]||{x:0,y:0,w:0,h:0,scale:1,contentX:0,contentY:0};
+    const x1=state.verticals[c], x2=state.verticals[c+1];
+    const y1=state.horizontals[r], y2=state.horizontals[r+1];
+    return {
+      x:x1+(adj.x||0)/100,
+      y:y1+(adj.y||0)/100,
+      w:(x2-x1)+(adj.w||0)/100,
+      h:(y2-y1)+(adj.h||0)/100
+    };
+  });
+}
+
+
+function buildAnalysisMask(){
+  if(!sourceReady()) return null;
+
+  const maxSide=420;
+  const sw=sourceWidth();
+  const sh=sourceHeight();
+  const ratio=Math.min(maxSide/sw,maxSide/sh,1);
+  const w=Math.max(80,Math.round(sw*ratio));
+  const h=Math.max(80,Math.round(sh*ratio));
+
+  const canvas=document.createElement('canvas');
+  canvas.width=w;
+  canvas.height=h;
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(sourceElement(),0,0,w,h);
+
+  const image=ctx.getImageData(0,0,w,h);
+  const data=image.data;
+
+  // Estimate background from several border points.
+  const samples=[];
+  const samplePoint=(x,y)=>{
+    const i=(y*w+x)*4;
+    samples.push([data[i],data[i+1],data[i+2]]);
+  };
+
+  const xs=[1,Math.floor(w*.25),Math.floor(w*.5),Math.floor(w*.75),w-2];
+  const ys=[1,Math.floor(h*.25),Math.floor(h*.5),Math.floor(h*.75),h-2];
+  xs.forEach(x=>{samplePoint(x,1);samplePoint(x,h-2);});
+  ys.forEach(y=>{samplePoint(1,y);samplePoint(w-2,y);});
+
+  const median=channel=>{
+    const values=samples.map(s=>s[channel]).sort((a,b)=>a-b);
+    return values[Math.floor(values.length/2)];
+  };
+  const bg=[median(0),median(1),median(2)];
+
+  const mask=new Uint8Array(w*h);
+  const threshold=42;
+
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const i=(y*w+x)*4;
+      const dr=data[i]-bg[0];
+      const dg=data[i+1]-bg[1];
+      const db=data[i+2]-bg[2];
+      const distance=Math.sqrt(dr*dr+dg*dg+db*db);
+      const alpha=data[i+3];
+      mask[y*w+x]=(alpha>20 && distance>threshold)?1:0;
+    }
+  }
+
+  return {w,h,mask,bg};
+}
+
+function smoothScores(values,radius=3){
+  return values.map((_,i)=>{
+    let total=0,count=0;
+    for(let j=Math.max(0,i-radius);j<=Math.min(values.length-1,i+radius);j++){
+      total+=values[j];
+      count++;
+    }
+    return total/count;
+  });
+}
+
+function findValley(scores,expected,searchRadius,minIndex,maxIndex){
+  const start=Math.max(minIndex,Math.floor(expected-searchRadius));
+  const end=Math.min(maxIndex,Math.ceil(expected+searchRadius));
+  let best=Math.round(expected);
+  let bestScore=Infinity;
+
+  for(let i=start;i<=end;i++){
+    if(scores[i]<bestScore){
+      bestScore=scores[i];
+      best=i;
+    }
+  }
+  return best;
+}
+
+function makeEqualGrid(count){
+  return Array.from({length:count+1},(_,i)=>i/count);
+}
+
+function gridLooksSafe(lines,count){
+  if(!Array.isArray(lines) || lines.length!==count+1)return false;
+  const expected=1/count;
+  for(let i=1;i<lines.length;i++){
+    const gap=lines[i]-lines[i-1];
+    if(!Number.isFinite(gap) || gap<expected*.72 || gap>expected*1.28)return false;
+  }
+  return lines[0]===0 && lines[lines.length-1]===1;
+}
+
+function detectConstrainedLines(scores,size,count){
+  const result=[0];
+  const cellSize=size/count;
+  const maxOffset=cellSize*.12;
+
+  for(let i=1;i<count;i++){
+    const expected=i*cellSize;
+    const found=findValley(
+      scores,
+      expected,
+      maxOffset,
+      Math.floor(expected-maxOffset),
+      Math.ceil(expected+maxOffset)
+    );
+
+    // Only use detection as a gentle correction, never as a new grid interpretation.
+    const blended=expected+(found-expected)*.65;
+    result.push(blended/size);
+  }
+
+  result.push(1);
+  return result;
+}
+
+function autoDetectGrid(){
+  const analysis=buildAnalysisMask();
+  if(!analysis){
+    gridDetectStatus.textContent='請先匯入圖片或影片';
+    return;
+  }
+
+  const {w,h,mask}=analysis;
+  const verticalScores=Array(w).fill(0);
+  const horizontalScores=Array(h).fill(0);
+
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      if(mask[y*w+x]){
+        verticalScores[x]++;
+        horizontalScores[y]++;
+      }
+    }
+  }
+
+  const vx=smoothScores(verticalScores,Math.max(2,Math.round(w*.008)));
+  const hy=smoothScores(horizontalScores,Math.max(2,Math.round(h*.008)));
+
+  const detectedVerticals=detectConstrainedLines(vx,w,state.cols);
+  const detectedHorizontals=detectConstrainedLines(hy,h,state.rows);
+  const safe=gridLooksSafe(detectedVerticals,state.cols) && gridLooksSafe(detectedHorizontals,state.rows);
+
+  state.verticals=safe ? detectedVerticals : makeEqualGrid(state.cols);
+  state.horizontals=safe ? detectedHorizontals : makeEqualGrid(state.rows);
+
+  state.cells.forEach(cell=>{
+    cell.x=0;cell.y=0;cell.w=0;cell.h=0;
+  });
+
+  drawOverlay();
+  drawPreview();
+  gridDetectStatus.textContent=safe
+    ? '已完成穩定微調｜格線只會在平均位置附近移動，仍可手動調整'
+    : '偵測結果不穩定｜已保留平均格線，請手動微調';
+}
+
+autoDetectGridBtn.addEventListener('click',autoDetectGrid);
+
+function drawOverlay(){
+  const rect=overlay.getBoundingClientRect();
+  octx.clearRect(0,0,rect.width,rect.height);
+  const cells=getBaseCells();
+  const selectionMode=state.activeToolTab==='selection';
+
+  cells.forEach((c,i)=>{
+    const x=c.x*rect.width;
+    const y=c.y*rect.height;
+    const w=c.w*rect.width;
+    const h=c.h*rect.height;
+    const included=state.selectedCells[i];
+
+    if(selectionMode && !included){
+      octx.fillStyle='rgba(0,0,0,.62)';
+      octx.fillRect(x,y,w,h);
+    }
+
+    octx.lineWidth=selectionMode ? (included?3:1.5) : (i===state.selected?3:1.5);
+    octx.strokeStyle=selectionMode
+      ? (included?'#b7ff3c':'rgba(255,255,255,.42)')
+      : (i===state.selected?'#44aaff':'rgba(183,255,60,.55)');
+    octx.strokeRect(x,y,w,h);
+
+    octx.fillStyle=selectionMode && included ? '#b7ff3c' : 'rgba(0,0,0,.68)';
+    octx.beginPath();
+    octx.arc(x+17,y+17,13,0,Math.PI*2);
+    octx.fill();
+
+    octx.fillStyle=selectionMode && included ? '#111' : '#fff';
+    octx.font='bold 12px system-ui';
+    octx.textAlign='center';
+    octx.textBaseline='middle';
+    octx.fillText(String(i+1),x+17,y+17);
+  });
+
+  // In selection mode, grid lines are display-only.
+  if(selectionMode)return;
+
+  state.verticals.forEach(v=>{
+    const x=v*rect.width;
+    octx.lineWidth=4;
+    octx.strokeStyle='rgba(183,255,60,.98)';
+    octx.beginPath();octx.moveTo(x,0);octx.lineTo(x,rect.height);octx.stroke();
+    octx.fillStyle='#b7ff3c';
+    octx.fillRect(x-7,rect.height/2-18,14,36);
+  });
+
+  state.horizontals.forEach(v=>{
+    const y=v*rect.height;
+    octx.lineWidth=4;
+    octx.strokeStyle='rgba(183,255,60,.98)';
+    octx.beginPath();octx.moveTo(0,y);octx.lineTo(rect.width,y);octx.stroke();
+    octx.fillStyle='#b7ff3c';
+    octx.fillRect(rect.width/2-18,y-7,36,14);
+  });
+}
+
+function nearestGridLine(x,y){
+  const r=overlay.getBoundingClientRect();
+  const threshold=14;
+  let best=null,dist=Infinity;
+  state.verticals.forEach((v,i)=>{
+    const d=Math.abs(x-v*r.width);
+    if(d<threshold && d<dist){best={type:'v',index:i};dist=d;}
+  });
+  state.horizontals.forEach((v,i)=>{
+    const d=Math.abs(y-v*r.height);
+    if(d<threshold && d<dist){best={type:'h',index:i};dist=d;}
+  });
+  return best;
+}
+
+overlay.addEventListener('pointerdown',e=>{
+  const r=overlay.getBoundingClientRect();
+  const x=e.clientX-r.left,y=e.clientY-r.top;
+  const nx=x/r.width,ny=y/r.height;
+  const cells=getBaseCells();
+  const idx=cells.findIndex(c=>nx>=c.x&&nx<=c.x+c.w&&ny>=c.y&&ny<=c.y+c.h);
+
+  if(state.activeToolTab==='selection'){
+    if(idx>=0){
+      state.selectedCells[idx]=!state.selectedCells[idx];
+      renderSelectionGrid();
+      updateSelectionHint();
+      drawOverlay();
+    }
+    return;
+  }
+
+  const hit=nearestGridLine(x,y);
+  if(hit){
+    state.dragging=hit;
+    overlay.setPointerCapture(e.pointerId);
+    return;
+  }
+
+  if(idx>=0) selectCell(idx);
+});
+
+overlay.addEventListener('pointermove',e=>{
+  if(!state.dragging)return;
+  const r=overlay.getBoundingClientRect();
+  const minGap=0.03;
+  if(state.dragging.type==='v'){
+    const i=state.dragging.index;
+    const raw=(e.clientX-r.left)/r.width;
+    const min=i===0?0:state.verticals[i-1]+minGap;
+    const max=i===state.verticals.length-1?1:state.verticals[i+1]-minGap;
+    state.verticals[i]=Math.max(min,Math.min(max,raw));
+  }else{
+    const i=state.dragging.index;
+    const raw=(e.clientY-r.top)/r.height;
+    const min=i===0?0:state.horizontals[i-1]+minGap;
+    const max=i===state.horizontals.length-1?1:state.horizontals[i+1]-minGap;
+    state.horizontals[i]=Math.max(min,Math.min(max,raw));
+  }
+  drawOverlay();
+  drawPreview();
+});
+
+function stopDrag(e){
+  if(state.dragging){
+    state.dragging=null;
+    try{overlay.releasePointerCapture(e.pointerId);}catch(_){}
+  }
+}
+overlay.addEventListener('pointerup',stopDrag);
+overlay.addEventListener('pointercancel',stopDrag);
+
+
+function switchToolTab(tab){
+  state.activeToolTab=tab;
+  const showAdjust=tab==='adjust';
+  const showBackground=tab==='background';
+  const showSelection=tab==='selection';
+
+  adjustTab.classList.toggle('active',showAdjust);
+  backgroundTab.classList.toggle('active',showBackground);
+  selectionTab.classList.toggle('active',showSelection);
+
+  adjustPanel.classList.toggle('active',showAdjust);
+  backgroundPanel.classList.toggle('active',showBackground);
+  selectionPanel.classList.toggle('active',showSelection);
+
+  if(!showBackground && state.eyedropperActive){
+    stopEyedropper();
+  }
+
+  cellNavSection.style.display=showSelection?'none':'block';
+  previewModeHint.style.display=showSelection?'none':'block';
+  singlePreviewWrap.style.display=showSelection?'none':'block';
+
+  drawOverlay();
+  if(!showSelection) drawPreview();
+}
+
+adjustTab.addEventListener('click',()=>switchToolTab('adjust'));
+backgroundTab.addEventListener('click',()=>switchToolTab('background'));
+selectionTab.addEventListener('click',()=>switchToolTab('selection'));
+
+function updateCellValueLabels(){
+  cellXValue.textContent=`${(+cellX.value).toFixed(1)}%`;
+  cellYValue.textContent=`${(+cellY.value).toFixed(1)}%`;
+  cellWValue.textContent=`${(+cellW.value).toFixed(1)}%`;
+  cellHValue.textContent=`${(+cellH.value).toFixed(1)}%`;
+  contentScaleValue.textContent=`${Math.round(+contentScale.value)}%`;
+  contentXValue.textContent=`${Math.round(+contentX.value)}%`;
+  contentYValue.textContent=`${Math.round(+contentY.value)}%`;
+}
+
+
+function updateCellNavigation(){
+  const total=state.cols*state.rows;
+  cellCounter.textContent=`第 ${state.selected+1} / ${total} 格`;
+  prevCellBtn.disabled=state.selected<=0;
+  nextCellBtn.disabled=state.selected>=total-1;
+  cellSelect.value=state.selected;
+}
+
+function selectCell(index){
+  const total=state.cols*state.rows;
+  state.selected=Math.max(0,Math.min(total-1,index));
+  updateCellNavigation();
+  loadCellInputs();
+  drawOverlay();
+  if(state.activeToolTab==='background') updateBackgroundScopeUI();
+  drawPreview();
+  switchToolTab(state.activeToolTab);
+}
+
+prevCellBtn.addEventListener('click',()=>selectCell(state.selected-1));
+nextCellBtn.addEventListener('click',()=>selectCell(state.selected+1));
+
+function loadCellInputs(){
+  const c=state.cells[state.selected];
+  cellX.value=c.x||0;
+  cellY.value=c.y||0;
+  cellW.value=c.w||0;
+  cellH.value=c.h||0;
+  contentScale.value=Math.round((c.scale||1)*100);
+  contentX.value=c.contentX||0;
+  contentY.value=c.contentY||0;
+  updateCellValueLabels();
+}
+function saveCellInputs(){
+  const c=state.cells[state.selected];
+  c.x=+cellX.value||0;
+  c.y=+cellY.value||0;
+  c.w=+cellW.value||0;
+  c.h=+cellH.value||0;
+  c.scale=(+contentScale.value||100)/100;
+  c.contentX=+contentX.value||0;
+  c.contentY=+contentY.value||0;
+  updateCellValueLabels();
+  drawOverlay();
+  drawPreview();
+}
+[cellX,cellY,cellW,cellH,contentScale,contentX,contentY].forEach(el=>el.addEventListener('input',saveCellInputs));
+cellSelect.addEventListener('change',()=>selectCell(+cellSelect.value));
+removeBg.addEventListener('input',()=>{
+  updateRemoveBgButtons();
+  drawPreview();
+});
+
+videoFile.addEventListener('change',()=>{
+  const f=videoFile.files[0];
+  if(!f)return;
+
+  state.sourceName=f.name;
+  playBtn.disabled=true;
+  detectBtn.disabled=true;
+  detectBtnInline.disabled=true;
+  eyedropperBtn.disabled=true;
+  autoDetectGridBtn.disabled=true;
+  addToProjectBtn.disabled=true;
+  exportStatus.textContent='正在載入檔案';
+
+  const reader=new FileReader();
+
+  reader.onload=()=>{
+    if(f.type.startsWith('image/')){
+      state.sourceType='image';
+      video.pause();
+      video.removeAttribute('src');
+      video.style.display='none';
+      sourceImage.style.display='block';
+      sourceImage.src=reader.result;
+
+      sourceImage.onload=()=>{
+        state.sourceImage=sourceImage;
+        updateTargetOptionsForSource();
+        detectBtn.disabled=false;
+        detectBtnInline.disabled=false;
+        eyedropperBtn.disabled=false;
+        autoDetectGridBtn.disabled=false;
+        exportStatus.textContent='圖片載入完成，正在初步偵測貼圖位置';
+        switchToolTab('adjust');
+        syncStageAspect();
+        drawPreview();
+        setTimeout(autoDetectGrid,80);
+        updateSelectionHint();
+      };
+
+      sourceImage.onerror=()=>{
+        exportStatus.textContent='圖片載入失敗，請改用 PNG、JPG 或 WebP';
+      };
+    }else if(f.type.startsWith('video/')){
+      state.sourceType='video';
+      state.sourceImage=null;
+      updateTargetOptionsForSource();
+      sourceImage.removeAttribute('src');
+      sourceImage.style.display='none';
+      video.style.display='block';
+      video.removeAttribute('crossorigin');
+      video.src=reader.result;
+
+      video.onloadedmetadata=()=>{
+        playBtn.disabled=false;
+        detectBtn.disabled=false;
+        detectBtnInline.disabled=false;
+        eyedropperBtn.disabled=false;
+        autoDetectGridBtn.disabled=false;
+        exportStatus.textContent='影片載入完成，正在初步偵測貼圖位置';
+        switchToolTab('adjust');
+        syncStageAspect();
+        drawPreview();
+        setTimeout(autoDetectGrid,120);
+        updateSelectionHint();
+      };
+
+      video.onerror=()=>{
+        exportStatus.textContent='影片載入失敗，請改用 MP4（H.264）格式';
+      };
+    }else{
+      exportStatus.textContent='不支援的檔案格式';
+    }
+  };
+
+  reader.onerror=()=>{
+    exportStatus.textContent='無法讀取檔案';
+  };
+
+  reader.readAsDataURL(f);
+});
+playBtn.onclick=()=>{if(state.sourceType==='video') video.paused?video.play():video.pause();};
+video.addEventListener('timeupdate',drawPreview);
+video.addEventListener('seeked',drawPreview);
+video.addEventListener('play',()=>requestAnimationFrame(loopPreview));
+function loopPreview(){drawPreview();if(!video.paused)requestAnimationFrame(loopPreview);}
+
+
+function sourceWidth(){
+  return state.sourceType==='image' ? sourceImage.naturalWidth : video.videoWidth;
+}
+function sourceHeight(){
+  return state.sourceType==='image' ? sourceImage.naturalHeight : video.videoHeight;
+}
+function sourceReady(){
+  return state.sourceType==='image' ? !!sourceImage.naturalWidth : !!video.videoWidth;
+}
+function sourceElement(){
+  return state.sourceType==='image' ? sourceImage : video;
+}
+
+function cropInfo(i){
+  const c=getBaseCells()[i];
+  return {
+    sx:Math.max(0,c.x*sourceWidth()),
+    sy:Math.max(0,c.y*sourceHeight()),
+    sw:Math.max(1,c.w*sourceWidth()),
+    sh:Math.max(1,c.h*sourceHeight())
+  };
+}
+
+function applyChroma(ctx,w,h,bg,tol){
+  const img=ctx.getImageData(0,0,w,h), d=img.data;
+  const visited=new Uint8Array(w*h);
+  const queueX=new Int32Array(w*h);
+  const queueY=new Int32Array(w*h);
+  let head=0,tail=0;
+
+  function isBackground(x,y){
+    const i=(y*w+x)*4;
+    const dr=d[i]-bg[0], dg=d[i+1]-bg[1], db=d[i+2]-bg[2];
+    return Math.sqrt(dr*dr+dg*dg+db*db) < tol;
+  }
+
+  function push(x,y){
+    if(x<0||y<0||x>=w||y>=h)return;
+    const idx=y*w+x;
+    if(visited[idx]||!isBackground(x,y))return;
+    visited[idx]=1;
+    queueX[tail]=x;
+    queueY[tail]=y;
+    tail++;
+  }
+
+  // Only start from the outer border.
+  for(let x=0;x<w;x++){ push(x,0); push(x,h-1); }
+  for(let y=1;y<h-1;y++){ push(0,y); push(w-1,y); }
+
+  while(head<tail){
+    const x=queueX[head], y=queueY[head];
+    head++;
+    push(x+1,y); push(x-1,y); push(x,y+1); push(x,y-1);
+  }
+
+  // Remove only background pixels connected to the border.
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const idx=y*w+x;
+      if(!visited[idx])continue;
+      const i=idx*4;
+      const dr=d[i]-bg[0], dg=d[i+1]-bg[1], db=d[i+2]-bg[2];
+      const dist=Math.sqrt(dr*dr+dg*dg+db*db);
+      d[i+3]=Math.max(0,Math.min(255,255*(dist/(tol||1))));
+    }
+  }
+  ctx.putImageData(img,0,0);
+}
+
+
+function drawStickerFrame(ctx, stickerIndex, outW, outH){
+  const c=cropInfo(stickerIndex);
+  const cfg=state.cells[stickerIndex];
+  const scale=cfg.scale||1;
+  const offsetX=(cfg.contentX||0)/100*outW;
+  const offsetY=(cfg.contentY||0)/100*outH;
+
+  // Preserve the crop's original aspect ratio.
+  // Fit the whole cropped image inside the output canvas first,
+  // then apply the user's uniform content scale.
+  const sourceAspect=c.sw/c.sh;
+  const outputAspect=outW/outH;
+
+  let baseW,baseH;
+
+  if(sourceAspect>outputAspect){
+    baseW=outW;
+    baseH=outW/sourceAspect;
+  }else{
+    baseH=outH;
+    baseW=outH*sourceAspect;
+  }
+
+  const drawW=baseW*scale;
+  const drawH=baseH*scale;
+  const destX=(outW-drawW)/2+offsetX;
+  const destY=(outH-drawH)/2+offsetY;
+
+  ctx.clearRect(0,0,outW,outH);
+  ctx.drawImage(
+    sourceElement(),
+    c.sx,c.sy,c.sw,c.sh,
+    destX,destY,drawW,drawH
+  );
+}
+
+function drawSelectionOverview(){
+  if(!sourceReady())return;
+
+  const w=preview.width;
+  const h=preview.height;
+  pctx.clearRect(0,0,w,h);
+
+  const sw=sourceWidth();
+  const sh=sourceHeight();
+  const sourceAspect=sw/sh;
+  const canvasAspect=w/h;
+
+  let drawW,drawH,offsetX,offsetY;
+
+  if(sourceAspect>canvasAspect){
+    drawW=w;
+    drawH=w/sourceAspect;
+    offsetX=0;
+    offsetY=(h-drawH)/2;
+  }else{
+    drawH=h;
+    drawW=h*sourceAspect;
+    offsetY=0;
+    offsetX=(w-drawW)/2;
+  }
+
+  pctx.drawImage(sourceElement(),0,0,sw,sh,offsetX,offsetY,drawW,drawH);
+
+  const cells=getBaseCells();
+
+  cells.forEach((cell,i)=>{
+    const x=offsetX+cell.x*drawW;
+    const y=offsetY+cell.y*drawH;
+    const cw=cell.w*drawW;
+    const ch=cell.h*drawH;
+    const selected=state.selectedCells[i];
+
+    if(!selected){
+      pctx.fillStyle='rgba(0,0,0,.62)';
+      pctx.fillRect(x,y,cw,ch);
+    }
+
+    pctx.lineWidth=selected?3:1.5;
+    pctx.strokeStyle=selected?'#b7ff3c':'rgba(255,255,255,.45)';
+    pctx.strokeRect(x,y,cw,ch);
+
+    const label=String(i+1);
+    pctx.font='bold 14px system-ui';
+    const textWidth=pctx.measureText(label).width;
+    pctx.fillStyle=selected?'#b7ff3c':'rgba(0,0,0,.72)';
+    pctx.beginPath();
+    pctx.arc(x+16,y+16,12,0,Math.PI*2);
+    pctx.fill();
+
+    pctx.fillStyle=selected?'#111':'#fff';
+    pctx.fillText(label,x+16-textWidth/2,y+21);
+  });
+
+  preview.dataset.overviewOffsetX=offsetX;
+  preview.dataset.overviewOffsetY=offsetY;
+  preview.dataset.overviewDrawW=drawW;
+  preview.dataset.overviewDrawH=drawH;
+}
+
+function drawPreview(){
+  if(!sourceReady())return;
+
+  if(state.activeToolTab==='selection') return;
+
+  previewModeHint.textContent=`第 ${state.selected+1} 格預覽`;
+  drawStickerFrame(pctx,state.selected,320,270);
+
+  if(removeBg.value==='on'){
+    try{
+      applyChroma(
+        pctx,320,270,
+        effectiveBgColor(state.selected),
+        effectiveTolerance(state.selected)
+      );
+    }catch(err){
+      console.error(err);
+      bgStatus.textContent='瀏覽器禁止讀取影片像素，請重新匯入影片或改用 Chrome 開啟';
+    }
+  }
+}
+
+
+
+function currentCellConfig(){
+  return state.cells[state.selected];
+}
+
+function effectiveTolerance(index=state.selected){
+  const cfg=state.cells[index];
+  return cfg && cfg.bgTolerance!==null ? cfg.bgTolerance : +tolerance.dataset.globalValue || +tolerance.value;
+}
+
+function effectiveBgColor(index=state.selected){
+  const cfg=state.cells[index];
+  return cfg && Array.isArray(cfg.bgColor) ? cfg.bgColor : state.bg;
+}
+
+
+function updateRemoveBgButtons(){
+  const enabled=removeBg.value==='on';
+  removeBgOffBtn.classList.toggle('active',!enabled);
+  removeBgOnBtn.classList.toggle('active',enabled);
+}
+
+function setRemoveBg(value){
+  removeBg.value=value;
+  updateRemoveBgButtons();
+  drawPreview();
+}
+
+removeBgOffBtn.addEventListener('click',()=>setRemoveBg('off'));
+removeBgOnBtn.addEventListener('click',()=>setRemoveBg('on'));
+
+function updateScopeButtons(){
+  const current=backgroundScope.value==='current';
+  scopeAllBtn.classList.toggle('active',!current);
+  scopeCurrentBtn.classList.toggle('active',current);
+}
+
+function setBackgroundScope(value){
+  backgroundScope.value=value;
+  updateScopeButtons();
+  updateBackgroundScopeUI();
+  drawPreview();
+}
+
+scopeAllBtn.addEventListener('click',()=>setBackgroundScope('all'));
+scopeCurrentBtn.addEventListener('click',()=>setBackgroundScope('current'));
+
+function updateBackgroundScopeUI(){
+  updateScopeButtons();
+  const cfg=currentCellConfig();
+  const isCurrent=backgroundScope.value==='current';
+
+  if(isCurrent){
+    if(cfg.bgTolerance===null) cfg.bgTolerance=+(tolerance.dataset.globalValue||tolerance.value);
+    if(!Array.isArray(cfg.bgColor)) cfg.bgColor=[...state.bg];
+    tolerance.value=cfg.bgTolerance;
+    resetCurrentBgBtn.style.display='block';
+    toleranceHint.textContent=`只調整第 ${state.selected+1} 格，不影響其他格子。往左可保留珍珠、眼睛等深色細節。`;
+  }else{
+    tolerance.value=+(tolerance.dataset.globalValue||38);
+    resetCurrentBgBtn.style.display='none';
+    toleranceHint.textContent='套用全部格子。往右會移除更多背景，往左會保留更多細節。';
+  }
+
+  updateBgColorUI();
+}
+
+function updateBgColorUI(){
+  const [r,g,b]=effectiveBgColor();
+  bgColorSwatch.style.background=`rgb(${r},${g},${b})`;
+  toleranceValue.textContent=Math.round(+tolerance.value);
+}
+
+function setBackgroundColor(rgb, sourceLabel){
+  state.bg=rgb.map(v=>Math.max(0,Math.min(255,Math.round(v))));
+  removeBg.value='on';
+  tolerance.dataset.globalValue=tolerance.value;
+updateRemoveBgButtons();
+updateScopeButtons();
+updateBgColorUI();
+updateBackgroundScopeUI();
+switchToolTab('adjust');
+  bgStatus.innerHTML=`已選擇背景色：rgb(${state.bg.join(', ')})<br><span class="small">${sourceLabel}</span>`;
+  drawPreview();
+}
+
+function stopEyedropper(){
+  state.eyedropperActive=false;
+  eyedropperBtn.textContent='滴管選擇背景色';
+  eyedropperBtn.classList.remove('primary');
+  preview.style.cursor='default';
+}
+
+function samplePreviewColor(event){
+  if(!state.eyedropperActive || !sourceReady()) return;
+
+  const rect=preview.getBoundingClientRect();
+  const x=Math.floor((event.clientX-rect.left)/rect.width*preview.width);
+  const y=Math.floor((event.clientY-rect.top)/rect.height*preview.height);
+
+  const sampleCanvas=document.createElement('canvas');
+  sampleCanvas.width=preview.width;
+  sampleCanvas.height=preview.height;
+  const sampleCtx=sampleCanvas.getContext('2d',{willReadFrequently:true});
+
+  drawStickerFrame(sampleCtx,state.selected,preview.width,preview.height);
+  const pixel=sampleCtx.getImageData(
+    Math.max(0,Math.min(preview.width-1,x)),
+    Math.max(0,Math.min(preview.height-1,y)),
+    1,1
+  ).data;
+
+  setBackgroundColor([pixel[0],pixel[1],pixel[2]],'使用滴管從目前預覽選取');
+  stopEyedropper();
+  switchToolTab('background');
+}
+
+function colorStats(){
+  if(!sourceReady())return null;
+  const temp=document.createElement('canvas');
+  temp.width=160;temp.height=90;
+  const ctx=temp.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(sourceElement(),0,0,160,90);
+  const pts=[[2,2],[157,2],[2,87],[157,87],[80,2],[80,87],[2,45],[157,45]];
+  let cols;
+  try{
+    cols=pts.map(([x,y])=>Array.from(ctx.getImageData(x,y,1,1).data.slice(0,3)));
+  }catch(err){
+    console.error(err);
+    bgStatus.textContent='背景偵測失敗：瀏覽器禁止讀取影片像素，請重新匯入影片';
+    return null;
+  }
+  const avg=[0,1,2].map(k=>Math.round(cols.reduce((s,c)=>s+c[k],0)/cols.length));
+  const spread=Math.max(...cols.map(c=>Math.sqrt((c[0]-avg[0])**2+(c[1]-avg[1])**2+(c[2]-avg[2])**2)));
+  return {avg,spread};
+}
+
+function runBackgroundDetection(){
+  switchToolTab('background');
+  const s=colorStats();
+  if(!s)return;
+
+  let msg='';
+  if(s.spread<12) msg='背景非常一致';
+  else if(s.spread<35) msg='背景大致一致';
+  else msg='背景變化較大，請檢查去背效果';
+
+  setBackgroundColor(s.avg,`${msg}｜背景變化值 ${s.spread.toFixed(1)}`);
+  switchToolTab('background');
+}
+
+detectBtn.onclick=runBackgroundDetection;
+detectBtnInline.onclick=runBackgroundDetection;
+
+eyedropperBtn.addEventListener('click',()=>{
+  switchToolTab('background');
+  if(!sourceReady())return;
+  state.eyedropperActive=!state.eyedropperActive;
+
+  if(state.eyedropperActive){
+    eyedropperBtn.textContent='請點預覽中的背景';
+    eyedropperBtn.classList.add('primary');
+    preview.style.cursor='crosshair';
+    bgStatus.innerHTML='滴管已啟用<br><span class="small">請在上方預覽圖點一下要移除的背景顏色。</span>';
+  }else{
+    stopEyedropper();
+  }
+});
+
+preview.addEventListener('click',samplePreviewColor);
+
+preview.addEventListener('click',event=>{
+  if(state.activeToolTab!=='selection' || !sourceReady())return;
+
+  const rect=preview.getBoundingClientRect();
+  const px=(event.clientX-rect.left)/rect.width*preview.width;
+  const py=(event.clientY-rect.top)/rect.height*preview.height;
+
+  const offsetX=+preview.dataset.overviewOffsetX||0;
+  const offsetY=+preview.dataset.overviewOffsetY||0;
+  const drawW=+preview.dataset.overviewDrawW||preview.width;
+  const drawH=+preview.dataset.overviewDrawH||preview.height;
+
+  if(px<offsetX || px>offsetX+drawW || py<offsetY || py>offsetY+drawH)return;
+
+  const nx=(px-offsetX)/drawW;
+  const ny=(py-offsetY)/drawH;
+  const cells=getBaseCells();
+
+  const index=cells.findIndex(cell=>
+    nx>=cell.x &&
+    nx<=cell.x+cell.w &&
+    ny>=cell.y &&
+    ny<=cell.y+cell.h
+  );
+
+  if(index<0)return;
+
+  state.selectedCells[index]=!state.selectedCells[index];
+  renderSelectionGrid();
+  updateSelectionHint();
+  drawSelectionOverview();
+});
+
+
+let previewTouchStartX=null;
+
+preview.addEventListener('touchstart',event=>{
+  if(state.eyedropperActive || state.activeToolTab==='selection')return;
+  previewTouchStartX=event.changedTouches[0].clientX;
+},{passive:true});
+
+preview.addEventListener('touchend',event=>{
+  if(state.eyedropperActive || state.activeToolTab==='selection' || previewTouchStartX===null)return;
+  const endX=event.changedTouches[0].clientX;
+  const delta=endX-previewTouchStartX;
+  previewTouchStartX=null;
+
+  if(Math.abs(delta)<45)return;
+  if(delta<0) selectCell(state.selected+1);
+  else selectCell(state.selected-1);
+},{passive:true});
+
+
+tolerance.dataset.globalValue=tolerance.value;
+
+backgroundScope.addEventListener('change',()=>{
+  updateBackgroundScopeUI();
+  drawPreview();
+});
+
+tolerance.addEventListener('input',()=>{
+  if(backgroundScope.value==='current'){
+    currentCellConfig().bgTolerance=+tolerance.value;
+  }else{
+    tolerance.dataset.globalValue=tolerance.value;
+  }
+  updateBgColorUI();
+  drawPreview();
+});
+
+resetCurrentBgBtn.addEventListener('click',()=>{
+  const cfg=currentCellConfig();
+  cfg.bgTolerance=null;
+  cfg.bgColor=null;
+  backgroundScope.value='all';
+  updateScopeButtons();
+  updateBackgroundScopeUI();
+  drawPreview();
+});
+
+function seekTo(t){
+  return new Promise((resolve,reject)=>{
+    const done=()=>{video.removeEventListener('seeked',done);resolve();};
+    video.addEventListener('seeked',done);
+    video.currentTime=Math.min(t,Math.max(0,video.duration-0.001));
+    setTimeout(()=>{video.removeEventListener('seeked',done);resolve();},1500);
+  });
+}
+
+
+
+function renderSelectionGrid(){
+  selectionGrid.innerHTML='';
+  state.selectedCells.forEach((selected,i)=>{
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='select-cell'+(selected?' active':'');
+    btn.textContent=String(i+1);
+    btn.addEventListener('click',()=>{
+      state.selectedCells[i]=!state.selectedCells[i];
+      renderSelectionGrid();
+      updateSelectionHint();
+      if(state.activeToolTab==='selection') drawOverlay();
+    });
+    selectionGrid.appendChild(btn);
+  });
+}
+
+function selectedCellIndexes(){
+  return state.selectedCells
+    .map((selected,i)=>selected?i:null)
+    .filter(i=>i!==null);
+}
+
+function updateSelectionHint(){
+  const target=getTargetCount();
+  const selected=selectedCellIndexes().length;
+
+  if(target===0){
+    selectionHint.textContent=`已選 ${selected} 張｜目前不限制總張數`;
+    addToProjectBtn.disabled=!sourceReady()||selected===0;
+    return;
+  }
+
+  const remaining=Math.max(0,target-state.projectItems.length);
+
+  if(remaining===0){
+    selectionHint.textContent='專案張數已滿';
+    addToProjectBtn.disabled=true;
+    return;
+  }
+
+  if(selected===0){
+    selectionHint.textContent=`目前還需要 ${remaining} 張，請至少選擇 1 格`;
+    addToProjectBtn.disabled=true;
+    return;
+  }
+
+  if(selected>remaining){
+    selectionHint.textContent=`目前選了 ${selected} 張，但專案只剩 ${remaining} 個位置`;
+    addToProjectBtn.disabled=true;
+    return;
+  }
+
+  selectionHint.textContent=`已選 ${selected} 張｜專案還可加入 ${remaining} 張`;
+  addToProjectBtn.disabled=!sourceReady();
+}
+
+selectAllBtn.addEventListener('click',()=>{
+  const target=getTargetCount();
+  const remaining=target===0 ? state.selectedCells.length : Math.max(0,target-state.projectItems.length);
+  state.selectedCells=Array.from({length:state.selectedCells.length},(_,i)=>i<Math.min(state.selectedCells.length,remaining));
+  renderSelectionGrid();
+  updateSelectionHint();
+  if(state.activeToolTab==='selection') drawOverlay();
+});
+
+clearSelectionBtn.addEventListener('click',()=>{
+  state.selectedCells=Array.from({length:12},()=>false);
+  renderSelectionGrid();
+  updateSelectionHint();
+  updateExportButtonLabel();
+});
+
+
+function makeLines(count){
+  return Array.from({length:count+1},(_,i)=>i/count);
+}
+
+function applyGridSize(cols,rows){
+  state.cols=Math.max(1,Math.min(10,cols));
+  state.rows=Math.max(1,Math.min(10,rows));
+  const total=state.cols*state.rows;
+
+  state.verticals=makeLines(state.cols);
+  state.horizontals=makeLines(state.rows);
+  state.cells=Array.from({length:total},()=>({
+    x:0,y:0,w:0,h:0,scale:1,contentX:0,contentY:0,
+    bgTolerance:null,bgColor:null
+  }));
+  state.selectedCells=Array.from({length:total},()=>true);
+  state.selected=0;
+
+  gridBadge.textContent=`${state.cols}×${state.rows} / ${total} 格`;
+  gridHelp.textContent=`${state.cols} 欄會有 ${state.cols+1} 條垂直線，${state.rows} 列會有 ${state.rows+1} 條水平線，每條線都能獨立拖曳。`;
+
+  rebuildCellSelect();
+  updateCellNavigation();
+  renderSelectionGrid();
+  loadCellInputs();
+  drawOverlay();
+  drawPreview();
+  updateSelectionHint();
+}
+
+function applyPreset(){
+  const value=gridPreset.value;
+  const custom=value==='custom';
+  customColsWrap.style.display=custom?'flex':'none';
+  customRowsWrap.style.display=custom?'flex':'none';
+
+  if(value==='4x3') applyGridSize(4,3);
+  if(value==='4x4') applyGridSize(4,4);
+  if(value==='3x3') applyGridSize(3,3);
+  if(value==='custom') applyGridSize(+customCols.value||4,+customRows.value||3);
+}
+
+gridPreset.addEventListener('change',applyPreset);
+customCols.addEventListener('input',()=>{
+  if(gridPreset.value==='custom') applyGridSize(+customCols.value||1,+customRows.value||1);
+});
+customRows.addEventListener('input',()=>{
+  if(gridPreset.value==='custom') applyGridSize(+customCols.value||1,+customRows.value||1);
+});
+
+
+
+function updateTargetOptionsForSource(){
+  const isVideo=state.sourceType==='video';
+
+  target32Option.disabled=isVideo;
+  target40Option.disabled=isVideo;
+
+  if(isVideo && (targetCount.value==='32' || targetCount.value==='40')){
+    targetCount.value='24';
+    exportStatus.textContent='影片屬於動態貼圖，張數已改為 24 張；32、40 張僅適用靜態貼圖';
+  }
+
+  const existingHint=document.getElementById('targetTypeHint');
+  if(existingHint){
+    existingHint.textContent=isVideo
+      ? '動態貼圖可選 8、16、24 張；32、40 張已停用'
+      : '靜態貼圖可選 8、16、24、32、40 張';
+  }
+
+  syncTargetUI();
+updateExportButtonLabel();
+}
+
+function getTargetCount(){
+  if(targetCount.value==='0') return 0;
+  if(targetCount.value==='custom') return Math.max(1,+customTargetCount.value||1);
+  return +targetCount.value;
+}
+
+function syncTargetUI(){
+  customTargetWrap.style.display=targetCount.value==='custom'?'flex':'none';
+  updateProjectStatus();
+  renderSelectionGrid();
+}
+
+targetCount.addEventListener('change',syncTargetUI);
+customTargetCount.addEventListener('input',()=>{
+  if(targetCount.value==='custom') updateProjectStatus();
+});
+
+
+function updateExportButtonLabel(){
+  const configuredTarget=getTargetCount();
+  const count=configuredTarget===0
+    ? state.projectItems.length
+    : Math.min(configuredTarget,state.projectItems.length);
+
+  if(count===1){
+    const item=state.projectItems[0];
+    exportBtn.textContent=item && item.type==='apng'
+      ? '下載 APNG'
+      : '下載 PNG';
+  }else if(count>1){
+    exportBtn.textContent=`下載 ZIP（${count} 張）`;
+  }else{
+    exportBtn.textContent='匯出貼圖';
+  }
+}
+
+function updateProjectStatus(){
+  const target=getTargetCount();
+
+  if(target===0){
+    projectStatus.textContent=`目前已加入 ${state.projectItems.length} 張｜未限制目標張數`;
+    exportBtn.disabled=state.projectItems.length===0;
+    updateSelectionHint();
+    return;
+  }
+
+  projectStatus.textContent=`目前已加入 ${state.projectItems.length} / ${target} 張`;
+  exportBtn.disabled=state.projectItems.length<target;
+  updateSelectionHint();
+}
+
+
+clearProjectBtn.addEventListener('click',()=>{
+  state.projectItems=[];
+  const target=getTargetCount();
+  const remaining=target===0 ? state.selectedCells.length : target;
+  state.selectedCells=Array.from({length:state.selectedCells.length},(_,i)=>i<Math.min(state.selectedCells.length,remaining));
+  renderSelectionGrid();
+  updateProjectStatus();
+  exportStatus.textContent='專案已清空';
+});
+
+async function captureSelectedCells(indexes){
+  const outW=320,outH=270;
+  const items=[];
+  const canvas=document.createElement('canvas');
+  canvas.width=outW;
+  canvas.height=outH;
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+
+  if(state.sourceType==='image'){
+    for(let pos=0;pos<indexes.length;pos++){
+      const sticker=indexes[pos];
+      exportStatus.textContent=`正在處理圖片 ${pos+1}/${indexes.length}（第 ${sticker+1} 格）`;
+      drawStickerFrame(ctx,sticker,outW,outH);
+
+      if(removeBg.value==='on'){
+        applyChroma(
+          ctx,outW,outH,
+          effectiveBgColor(sticker),
+          effectiveTolerance(sticker)
+        );
+      }
+
+      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+      items.push({type:'png',data:await blob.arrayBuffer()});
+      await nextPaint();
+    }
+    return items;
+  }
+
+  const duration=Math.min(+maxDuration.value,video.duration||4);
+  let fpsN=8;
+  if(quality.value==='high') fpsN=12;
+  if(quality.value==='small') fpsN=8;
+  if(quality.value==='auto') fpsN=duration<=2?10:8;
+
+  const frameCount=Math.max(2,Math.floor(duration*fpsN));
+  const delay=Math.round(1000/fpsN);
+  const oldTime=video.currentTime;
+
+  for(let pos=0;pos<indexes.length;pos++){
+    const sticker=indexes[pos];
+    const frames=[];
+    exportStatus.textContent=`正在準備所選貼圖 ${pos+1}/${indexes.length}（第 ${sticker+1} 格）`;
+    await nextPaint();
+
+    for(let f=0;f<frameCount;f++){
+      await seekTo(f/fpsN);
+      drawStickerFrame(ctx,sticker,outW,outH);
+
+      if(removeBg.value==='on'){
+        applyChroma(
+          ctx,outW,outH,
+          effectiveBgColor(sticker),
+          effectiveTolerance(sticker)
+        );
+      }
+
+      frames.push(ctx.getImageData(0,0,outW,outH).data.buffer.slice(0));
+      if(f%3===0) await nextPaint();
+    }
+
+    const delays=Array(frameCount).fill(delay);
+    const apng=UPNG.encode(frames,outW,outH,0,delays);
+    items.push({type:'apng',data:apng});
+    frames.length=0;
+  }
+
+  await seekTo(oldTime);
+  return items;
+}
+
+addToProjectBtn.addEventListener('click',async()=>{
+  if(typeof pako==='undefined'||typeof UPNG==='undefined'){
+    exportStatus.textContent='APNG 編碼工具尚未載入完成';
+    return;
+  }
+
+  addToProjectBtn.disabled=true;
+  exportBtn.disabled=true;
+
+  try{
+    const indexes=selectedCellIndexes();
+    const target=getTargetCount();
+    const remaining=target===0 ? indexes.length : Math.max(0,target-state.projectItems.length);
+
+    if(indexes.length===0){
+      exportStatus.textContent='請先選擇要加入的貼圖';
+      return;
+    }
+    if(target!==0 && indexes.length>remaining){
+      exportStatus.textContent=`只能再加入 ${remaining} 張，請減少選取數量`;
+      return;
+    }
+
+    const items=await captureSelectedCells(indexes);
+    state.projectItems.push(...items);
+
+    const newRemaining=target===0 ? state.selectedCells.length : Math.max(0,target-state.projectItems.length);
+    state.selectedCells=Array.from({length:state.selectedCells.length},(_,i)=>i<Math.min(state.selectedCells.length,newRemaining));
+    renderSelectionGrid();
+    updateProjectStatus();
+    exportStatus.textContent=`已加入 ${items.length} 張到專案`;
+  }catch(err){
+    console.error(err);
+    exportStatus.textContent='加入專案失敗：'+((err&&err.message)?err.message:String(err));
+  }finally{
+    addToProjectBtn.disabled=false;
+  }
+});
+
+function nextPaint(){
+  return new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));
+}
+
+exportBtn.onclick=async()=>{
+  if(typeof nextStepCard!=='undefined') nextStepCard.classList.remove('show');
+  const configuredTarget=getTargetCount();
+  const target=configuredTarget===0 ? state.projectItems.length : configuredTarget;
+
+  if(target===0){
+    exportStatus.textContent='目前沒有可匯出的貼圖';
+    return;
+  }
+
+  if(configuredTarget!==0 && state.projectItems.length<target){
+    exportStatus.textContent=`還需要 ${target-state.projectItems.length} 張`;
+    return;
+  }
+
+  const items=state.projectItems.slice(0,target);
+
+  // One item: download the PNG/APNG directly.
+  if(items.length===1){
+    const item=items[0];
+    const blob=new Blob([item.data],{type:'image/png'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=item.type==='apng' ? '01.png' : '01.png';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+
+    progressBar.style.width='100%';
+    exportStatus.textContent=item.type==='apng'
+      ? '完成：已下載 1 張 APNG'
+      : '完成：已下載 1 張 PNG';
+    updateProjectStatus();
+    return;
+  }
+
+  // Multiple items: package as ZIP.
+  if(typeof JSZip==='undefined'){
+    exportStatus.textContent='ZIP 打包工具尚未載入完成';
+    return;
+  }
+
+  exportBtn.disabled=true;
+  progressBar.style.width='0%';
+
+  try{
+    const zip=new JSZip();
+    const folder=zip.folder('stickers');
+
+    items.forEach((item,i)=>{
+      folder.file(String(i+1).padStart(2,'0')+'.png',item.data);
+      progressBar.style.width=`${Math.round((i+1)/items.length*90)}%`;
+    });
+
+    const meta={
+      type: items.some(x=>x.type==='apng') ? 'Animated sticker project' : 'Static sticker project',
+      count:items.length,
+      generatedBy:'Sticker Cutter'
+    };
+    zip.file('meta.json',JSON.stringify(meta,null,2));
+
+    exportStatus.textContent='正在打包貼圖 ZIP';
+
+    const blob=await zip.generateAsync(
+      {type:'blob'},
+      metadata=>progressBar.style.width=`${90+Math.round(metadata.percent*0.1)}%`
+    );
+
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`sticker-pack-${items.length}.zip`;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+
+    progressBar.style.width='100%';
+    exportStatus.textContent=`完成：已匯出 ${items.length} 張貼圖 ZIP`;
+    if(typeof nextStepCard!=='undefined'){
+      nextStepFile.textContent=`已建立 sticker-pack-${items.length || target}.zip`;
+      nextStepCard.classList.add('show');
+      nextStepCard.scrollIntoView({behavior:'smooth',block:'nearest'});
+    }
+  }catch(err){
+    console.error(err);
+    exportStatus.textContent='輸出失敗：'+((err&&err.message)?err.message:String(err));
+  }finally{
+    updateProjectStatus();
+  }
+};
+
+resetCellBtn.addEventListener('click',()=>{
+  state.cells[state.selected]={
+    x:0,y:0,w:0,h:0,scale:1,contentX:0,contentY:0,
+    bgTolerance:null,bgColor:null
+  };
+  loadCellInputs();
+  drawOverlay();
+  drawPreview();
+});
+
+resetGridBtn.addEventListener('click',()=>{
+  state.verticals=Array.from({length:state.cols+1},(_,i)=>i/state.cols);
+  state.horizontals=Array.from({length:state.rows+1},(_,i)=>i/state.rows);
+  state.cells=Array.from({length:state.cols*state.rows},()=>({x:0,y:0,w:0,h:0,scale:1,contentX:0,contentY:0}));
+  loadCellInputs();
+  drawOverlay();
+  drawPreview();
+});
+
+rebuildCellSelect();
+updateCellNavigation();
+loadCellInputs();
+renderSelectionGrid();
+updateProjectStatus();
+applyPreset();
+syncTargetUI();
+updateBgColorUI();
+
+
+document.querySelectorAll('.preset-btn').forEach(btn=>{
+ btn.onclick=()=>{
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  gridPreset.value=btn.dataset.value;
+  gridPreset.dispatchEvent(new Event('change'));
+ };
+});
+
+window.addEventListener('load',()=>{
+  const ready = typeof pako!=='undefined' && typeof UPNG!=='undefined' && typeof JSZip!=='undefined';
+  if(!ready){
+    exportStatus.textContent='編碼工具尚未完整載入，請保持網路連線並重新整理頁面';
+  }
+});
+</script>
+
+<footer class="site-footer">
+  <div class="footer-title">Sticker Cutter｜你的貼圖小幫手</div>
+  <div class="footer-line">Version 1.5</div>
+  <div class="footer-line">© 2026 셰니 ZLX</div>
+  <div class="privacy-line">檔案僅於你的瀏覽器處理｜不會上傳或保存｜素材版權仍屬原作者</div>
+</footer>
+
+<script id="whats-new-state-script">
+(() => {
+  const panel=document.getElementById('whatsNewPanel');
+  if(!panel)return;
+  const key='sticker-cutter-whats-new-v1.5';
+  if(localStorage.getItem(key)==='closed')panel.open=false;
+  panel.addEventListener('toggle',()=>{
+    localStorage.setItem(key,panel.open?'open':'closed');
+  });
+})();
+</script>
+
+</body>
+</html>
