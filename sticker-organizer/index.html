@@ -1,1 +1,618 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>貼圖整理器 Sticker Organizer</title>
+  <style>
+    :root{
+      --bg:#0d0f12;
+      --panel:#171a1f;
+      --panel2:#101318;
+      --line:#2a2f38;
+      --text:#f5f7fa;
+      --muted:#9ca3af;
+      --accent:#b7ff3c;
+      --danger:#ff7676;
+      --warning:#ffd166;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;
+    }
+    main{max-width:1080px;margin:auto;padding:20px}
+    h1{font-size:24px;margin:0 0 8px}
+    h2{font-size:15px;margin:0}
+    p{color:var(--muted);line-height:1.6;margin:0}
+    button,.upload{
+      border:0;border-radius:12px;padding:11px 14px;font-weight:800;cursor:pointer
+    }
+    button.primary,.upload{background:var(--accent);color:#111}
+    .secondary-upload{background:#272c34;color:var(--text)}
+    button.secondary{background:#272c34;color:var(--text)}
+    button.danger{background:#372025;color:#ffd6d6}
+    button:disabled{opacity:.4;cursor:not-allowed}
+    input[type=file]{display:none}
+    .topbar{
+      display:flex;gap:12px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap
+    }
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    .panel{
+      background:var(--panel);border:1px solid var(--line);border-radius:18px;
+      padding:16px;margin-top:16px
+    }
+    .dropzone{
+      border:1.5px dashed #4c545f;border-radius:16px;padding:28px 16px;text-align:center;
+      background:#11151a;transition:.2s
+    }
+    .dropzone.drag{border-color:var(--accent);background:#18200f}
+    .dropzone strong{display:block;margin-bottom:8px}
+    .stats{
+      display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px
+    }
+    .stat{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px}
+    .stat small{display:block;color:var(--muted);margin-bottom:4px}
+    .stat b{font-size:20px}
+    .toolbar{
+      display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap;
+      margin-top:14px
+    }
+    .toolbar-left,.toolbar-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .statusline{font-size:13px;color:var(--muted)}
+    .grid{
+      display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px
+    }
+    .card{
+      background:var(--panel2);border:1px solid var(--line);border-radius:16px;overflow:hidden
+    }
+    .card.selected{border-color:var(--accent)}
+    .preview{
+      aspect-ratio:4/3;background:repeating-conic-gradient(#d9d9d9 0 25%,#fff 0 50%) 50%/18px 18px;
+      display:flex;align-items:center;justify-content:center;overflow:hidden
+    }
+    .preview img{width:100%;height:100%;object-fit:contain}
+    .cardbody{padding:12px}
+    .name{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .meta{font-size:12px;color:var(--muted);line-height:1.6;margin-top:6px}
+    .tag{
+      display:inline-flex;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:800;
+      margin-top:8px
+    }
+    .tag.ok{background:#1d2a12;color:var(--accent)}
+    .tag.bad{background:#321d22;color:#ffb0b0}
+    .card-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px}
+    .card-actions button{padding:8px;font-size:12px}
+    .empty{
+      text-align:center;color:var(--muted);padding:42px 12px;border:1px dashed var(--line);
+      border-radius:16px;margin-top:14px
+    }
+    .note{
+      margin-top:14px;padding:12px;border-radius:12px;background:#101318;border:1px solid var(--line);
+      color:var(--muted);font-size:13px;line-height:1.6
+    }
+    @media(max-width:760px){
+      .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+    }
+    @media(max-width:480px){
+      main{padding:14px}
+      .grid{gap:8px}
+      .cardbody{padding:9px}
+      .card-actions{grid-template-columns:1fr 1fr}
+      .card-actions button:nth-child(3){grid-column:1 / -1}
+      .name{font-size:13px}
+      .meta{font-size:11px}
+    }
+  </style>
 
+
+
+
+
+<style id="sticker-tools-nav-style">
+.sticker-tools-header{
+  max-width:1080px;
+  margin:0 auto;
+  padding:18px 20px 4px;
+}
+.sticker-tools-brand{
+  color:var(--muted,#9ca3af);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.sticker-tools-nav{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:6px;
+  flex-wrap:wrap;
+}
+.sticker-tools-nav a,
+.sticker-tools-nav span{
+  position:relative;
+  color:var(--muted,#9ca3af);
+  text-decoration:none;
+  font-weight:800;
+  padding:7px 0 9px;
+}
+.sticker-tools-nav a:hover{color:var(--text,#f5f7fa)}
+.sticker-tools-nav .current{color:var(--accent,#b7ff3c)}
+.sticker-tools-nav .current::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:2px;
+  height:2px;
+  border-radius:999px;
+  background:var(--accent,#b7ff3c);
+}
+.sticker-tools-dot{
+  color:var(--line,#2a2f38);
+  user-select:none;
+}
+.next-step-card{
+  display:none;
+  margin-top:16px;
+  padding:16px;
+  border:1px solid var(--line,#2a2f38);
+  border-radius:16px;
+  background:var(--panel,#171a1f);
+}
+.next-step-card.show{display:block}
+.next-step-card h3{margin:0 0 6px;font-size:16px}
+.next-step-card p{margin:6px 0;color:var(--muted,#9ca3af)}
+.next-step-card a{
+  display:inline-flex;
+  margin-top:10px;
+  padding:11px 14px;
+  border-radius:12px;
+  background:var(--accent,#b7ff3c);
+  color:#111;
+  font-weight:800;
+  text-decoration:none;
+}
+@media(max-width:480px){
+  .sticker-tools-header{padding:14px 14px 2px}
+  .sticker-tools-nav{gap:8px}
+  .sticker-tools-nav a,
+  .sticker-tools-nav span{font-size:13px}
+}
+</style>
+
+</head>
+<body>
+
+<header class="sticker-tools-header">
+  <div class="sticker-tools-brand">Sticker Tools</div>
+  <nav class="sticker-tools-nav" aria-label="Sticker tools">
+    <a href="https://sparkling-cherry-fa53.shennyyces.workers.dev" target="_blank" rel="noopener">Sticker Cutter</a>
+    <span class="sticker-tools-dot">·</span>
+    <span class="current">Sticker Organizer</span>
+  </nav>
+</header>
+<main>
+  <div class="topbar">
+    <div>
+      <h1>貼圖整理器 <span style="color:var(--muted);font-weight:600">Sticker Organizer</span></h1>
+      <p>加入 ZIP、PNG、APNG 或整個資料夾，統一整理、檢查、排序與重新打包。</p>
+    </div>
+    <div class="actions">
+      <label class="upload" for="fileInput">加入檔案</label>
+      <input id="fileInput" type="file" accept=".zip,image/png,.png" multiple>
+      <label class="upload secondary-upload" for="folderInput">加入資料夾</label>
+      <input id="folderInput" type="file" accept="image/png,.png" webkitdirectory directory multiple>
+      <button id="downloadBtn" class="secondary" disabled>下載所選 ZIP</button>
+    </div>
+  </div>
+
+  <section class="panel">
+    <div id="dropzone" class="dropzone">
+      <strong>拖曳 ZIP、PNG 或 APNG 到這裡</strong>
+      <span class="statusline">可同時加入多個 ZIP 與圖片；資料夾請使用上方「加入資料夾」</span>
+    </div>
+
+    <div id="importStatus" class="note" style="margin-top:14px">
+      尚未匯入檔案
+    </div>
+
+    <div class="stats">
+      <div class="stat"><small>全部檔案</small><b id="totalCount">0</b></div>
+      <div class="stat"><small>APNG</small><b id="apngCount">0</b></div>
+      <div class="stat"><small>普通 PNG</small><b id="pngCount">0</b></div>
+      <div class="stat"><small>已選取</small><b id="selectedCount">0</b></div>
+    </div>
+
+    <div class="note" style="margin-top:14px">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <b style="color:var(--text)">建議張數</b>
+        <select id="targetCount" style="background:#0f1216;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px 12px">
+          <option value="0" selected>不限制</option>
+          <option value="8">8 張</option>
+          <option value="16">16 張</option>
+          <option value="24">24 張</option>
+        </select>
+        <span id="targetHint">可依 LINE 貼圖規格選擇 8、16 或 24 張，也可以維持不限制。</span>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <button id="selectAllBtn" class="secondary">全選</button>
+        <button id="clearSelectBtn" class="secondary">取消全選</button>
+        <button id="removeSelectedBtn" class="danger">刪除所選</button>
+      </div>
+      <div class="toolbar-right">
+        <span id="projectStatus" class="statusline">尚未加入檔案</span>
+      </div>
+    </div>
+
+    <div id="empty" class="empty">加入 ZIP、PNG、APNG 或資料夾後，檔案會顯示在這裡</div>
+    <div id="grid" class="grid"></div>
+
+    <div class="note">
+      APNG 的副檔名本來就是 <b>.png</b>。ZIP 只作為匯入與打包容器，工具會自動讀取其中的 PNG／APNG，並忽略其他檔案。所有處理都只在瀏覽器內完成。
+    </div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script>
+const state={items:[]};
+
+const fileInput=document.getElementById('fileInput');
+const folderInput=document.getElementById('folderInput');
+const importStatus=document.getElementById('importStatus');
+const dropzone=document.getElementById('dropzone');
+const grid=document.getElementById('grid');
+const empty=document.getElementById('empty');
+const totalCount=document.getElementById('totalCount');
+const apngCount=document.getElementById('apngCount');
+const pngCount=document.getElementById('pngCount');
+const selectedCount=document.getElementById('selectedCount');
+const projectStatus=document.getElementById('projectStatus');
+const downloadBtn=document.getElementById('downloadBtn');
+
+function readUint32(bytes,offset){
+  return ((bytes[offset]<<24)|(bytes[offset+1]<<16)|(bytes[offset+2]<<8)|bytes[offset+3])>>>0;
+}
+
+function inspectPng(buffer){
+  const bytes=new Uint8Array(buffer);
+  const signature=[137,80,78,71,13,10,26,10];
+  if(bytes.length<8||!signature.every((v,i)=>bytes[i]===v)) return {valid:false};
+
+  let offset=8,hasAcTL=false,frameCount=null,loopCount=null,width=null,height=null;
+  while(offset+12<=bytes.length){
+    const length=readUint32(bytes,offset);
+    const type=String.fromCharCode(bytes[offset+4],bytes[offset+5],bytes[offset+6],bytes[offset+7]);
+    const dataOffset=offset+8;
+
+    if(type==='IHDR'&&length>=8){
+      width=readUint32(bytes,dataOffset);
+      height=readUint32(bytes,dataOffset+4);
+    }
+    if(type==='acTL'&&length>=8){
+      hasAcTL=true;
+      frameCount=readUint32(bytes,dataOffset);
+      loopCount=readUint32(bytes,dataOffset+4);
+    }
+    offset+=12+length;
+    if(type==='IEND') break;
+  }
+  return {valid:true,hasAcTL,frameCount,loopCount,width,height};
+}
+
+function isPngName(name){
+  return name.toLowerCase().endsWith('.png');
+}
+
+function isZipName(name){
+  return name.toLowerCase().endsWith('.zip');
+}
+
+function uniqueDisplayName(name){
+  const existing=new Set(state.items.map(item=>item.file.name.toLowerCase()));
+  if(!existing.has(name.toLowerCase())) return name;
+
+  const dot=name.lastIndexOf('.');
+  const base=dot>=0?name.slice(0,dot):name;
+  const ext=dot>=0?name.slice(dot):'';
+  let n=2;
+  let candidate=`${base}-${n}${ext}`;
+
+  while(existing.has(candidate.toLowerCase())){
+    n++;
+    candidate=`${base}-${n}${ext}`;
+  }
+  return candidate;
+}
+
+async function addPngBlob(blob,name,sourceLabel='一般檔案'){
+  const buffer=await blob.arrayBuffer();
+  const info=inspectPng(buffer);
+
+  if(!info.valid) return false;
+
+  const safeName=uniqueDisplayName(name || 'sticker.png');
+  const file=new File([buffer],safeName,{type:'image/png'});
+
+  state.items.push({
+    id:crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()),
+    file,
+    buffer,
+    info,
+    selected:true,
+    url:URL.createObjectURL(file),
+    sourceLabel
+  });
+
+  return true;
+}
+
+async function addZipFile(file){
+  if(typeof JSZip==='undefined'){
+    throw new Error('ZIP 工具尚未載入，請確認網路連線後重新整理');
+  }
+
+  const zip=await JSZip.loadAsync(file);
+  const entries=Object.values(zip.files).filter(entry=>
+    !entry.dir &&
+    isPngName(entry.name) &&
+    !entry.name.split('/').some(part=>part.startsWith('__MACOSX'))
+  );
+
+  let added=0;
+
+  for(const entry of entries){
+    const blob=await entry.async('blob');
+    const name=entry.name.split('/').pop() || 'sticker.png';
+    const ok=await addPngBlob(blob,name,`ZIP：${file.name}`);
+    if(ok) added++;
+  }
+
+  return added;
+}
+
+async function addFiles(fileList){
+  const files=[...fileList];
+  if(!files.length)return;
+
+  importStatus.textContent=`正在匯入 ${files.length} 個項目…`;
+
+  let added=0;
+  let zipCount=0;
+  let ignored=0;
+  const errors=[];
+
+  for(const file of files){
+    try{
+      if(isZipName(file.name)){
+        zipCount++;
+        const count=await addZipFile(file);
+        added+=count;
+        if(count===0) ignored++;
+      }else if(file.type==='image/png' || isPngName(file.name)){
+        const relative=file.webkitRelativePath||file.name;
+        const ok=await addPngBlob(file,file.name,relative.includes('/')?`資料夾：${relative.split('/')[0]}`:'一般檔案');
+        if(ok) added++;
+        else ignored++;
+      }else{
+        ignored++;
+      }
+    }catch(error){
+      console.error(error);
+      errors.push(`${file.name}：${error.message||error}`);
+    }
+  }
+
+  render();
+
+  const parts=[`已加入 ${added} 張`];
+  if(zipCount) parts.push(`來自 ${zipCount} 個 ZIP`);
+  if(ignored) parts.push(`忽略 ${ignored} 個不支援或無圖片項目`);
+  if(errors.length) parts.push(`失敗 ${errors.length} 個`);
+
+  importStatus.innerHTML=parts.join('｜')+
+    (errors.length?`<br><span class="bad">${errors.slice(0,3).join('<br>')}</span>`:'');
+
+  return added;
+}
+
+
+function updateTargetHint(){
+  const target=+targetCount.value;
+  const total=state.items.length;
+
+  if(!target){
+    targetHint.textContent='目前不限制張數，可用於其他用途。';
+    return;
+  }
+
+  if(total===target){
+    targetHint.textContent=`已達 ${target} 張`;
+  }else if(total<target){
+    targetHint.textContent=`目前 ${total} 張，還差 ${target-total} 張`;
+  }else{
+    targetHint.textContent=`目前 ${total} 張，超過建議張數 ${target} 張`;
+  }
+}
+
+targetCount.addEventListener('change',updateTargetHint);
+
+function render(){
+  grid.innerHTML='';
+  empty.style.display=state.items.length?'none':'block';
+
+  state.items.forEach((item,index)=>{
+    const card=document.createElement('article');
+    card.className='card'+(item.selected?' selected':'');
+
+    const preview=document.createElement('div');
+    preview.className='preview';
+    const img=document.createElement('img');
+    img.src=item.url;
+    img.alt=item.file.name;
+    preview.appendChild(img);
+
+    const body=document.createElement('div');
+    body.className='cardbody';
+
+    const name=document.createElement('div');
+    name.className='name';
+    name.textContent=item.file.name;
+
+    const meta=document.createElement('div');
+    meta.className='meta';
+    if(item.info.valid){
+      const loops=item.info.loopCount===0?'無限循環':`${item.info.loopCount??0} 次`;
+      meta.innerHTML=`${item.info.width} × ${item.info.height}<br>`+
+        `${item.info.hasAcTL?`畫格 ${item.info.frameCount}｜${loops}`:'單張靜態圖片'}`+
+        `<br>${item.sourceLabel||'一般檔案'}`;
+    }else{
+      meta.textContent='無效的 PNG 檔案';
+    }
+
+    const tag=document.createElement('span');
+    tag.className='tag '+(item.info.hasAcTL?'ok':'bad');
+    tag.textContent=item.info.hasAcTL?'APNG 動態圖片':'普通 PNG';
+
+    const actions=document.createElement('div');
+    actions.className='card-actions';
+
+    const select=document.createElement('button');
+    select.className=item.selected?'primary':'secondary';
+    select.textContent=item.selected?'已選取':'選取';
+    select.addEventListener('click',()=>{
+      item.selected=!item.selected;
+      render();
+    });
+
+    const up=document.createElement('button');
+    up.className='secondary';
+    up.textContent='往前';
+    up.disabled=index===0;
+    up.addEventListener('click',()=>{
+      [state.items[index-1],state.items[index]]=[state.items[index],state.items[index-1]];
+      render();
+    });
+
+    const remove=document.createElement('button');
+    remove.className='danger';
+    remove.textContent='刪除';
+    remove.addEventListener('click',()=>{
+      URL.revokeObjectURL(item.url);
+      state.items=state.items.filter(x=>x.id!==item.id);
+      render();
+    });
+
+    actions.append(select,up,remove);
+    body.append(name,meta,tag,actions);
+    card.append(preview,body);
+    grid.appendChild(card);
+  });
+
+  const total=state.items.length;
+  const apng=state.items.filter(x=>x.info.hasAcTL).length;
+  const selected=state.items.filter(x=>x.selected).length;
+
+  totalCount.textContent=total;
+  apngCount.textContent=apng;
+  pngCount.textContent=total-apng;
+  selectedCount.textContent=selected;
+  projectStatus.textContent=total?`目前專案共有 ${total} 張`:'尚未加入檔案';
+  downloadBtn.disabled=selected===0;
+  updateTargetHint();
+}
+
+fileInput.addEventListener('change',async()=>{
+  await addFiles(fileInput.files);
+  fileInput.value='';
+});
+
+folderInput.addEventListener('change',async()=>{
+  await addFiles(folderInput.files);
+  folderInput.value='';
+});
+
+['dragenter','dragover'].forEach(evt=>{
+  dropzone.addEventListener(evt,e=>{
+    e.preventDefault();
+    dropzone.classList.add('drag');
+  });
+});
+['dragleave','drop'].forEach(evt=>{
+  dropzone.addEventListener(evt,e=>{
+    e.preventDefault();
+    dropzone.classList.remove('drag');
+  });
+});
+dropzone.addEventListener('drop',async e=>{await addFiles(e.dataTransfer.files);});
+
+document.getElementById('selectAllBtn').addEventListener('click',()=>{
+  state.items.forEach(x=>x.selected=true);
+  render();
+});
+document.getElementById('clearSelectBtn').addEventListener('click',()=>{
+  state.items.forEach(x=>x.selected=false);
+  render();
+});
+document.getElementById('removeSelectedBtn').addEventListener('click',()=>{
+  state.items.filter(x=>x.selected).forEach(x=>URL.revokeObjectURL(x.url));
+  state.items=state.items.filter(x=>!x.selected);
+  render();
+});
+
+downloadBtn.addEventListener('click',async()=>{
+  const selected=state.items.filter(x=>x.selected);
+  if(!selected.length)return;
+  if(typeof JSZip==='undefined'){
+    projectStatus.textContent='ZIP 工具尚未載入，請確認網路連線後重新整理';
+    return;
+  }
+
+  downloadBtn.disabled=true;
+  projectStatus.textContent='正在打包 ZIP';
+
+  const zip=new JSZip();
+  selected.forEach((item,index)=>{
+    const safeName=String(index+1).padStart(2,'0')+'.png';
+    zip.file(safeName,item.buffer);
+  });
+
+  zip.file('apng-report.json',JSON.stringify(selected.map((item,index)=>({
+    order:index+1,
+    originalName:item.file.name,
+    type:item.info.hasAcTL?'APNG':'PNG',
+    width:item.info.width,
+    height:item.info.height,
+    frames:item.info.frameCount,
+    loops:item.info.loopCount,
+    source:item.sourceLabel||'一般檔案'
+  })),null,2));
+
+  const blob=await zip.generateAsync({type:'blob'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='sticker-project.zip';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+
+  projectStatus.textContent=`已下載 ${selected.length} 張`;
+  downloadBtn.disabled=false;
+});
+
+render();
+</script>
+
+<footer style="margin-top:40px;padding:24px 16px;text-align:center;color:#9aa3ad;font-size:13px;border-top:1px solid rgba(255,255,255,.08)">
+  <div style="font-weight:600;color:#fff">Sticker Organizer</div>
+  <div style="margin-top:6px">Version 1.1</div>
+  <div style="margin-top:10px">© 2026 셰니 ZLX. All Rights Reserved.</div>
+</footer>
+</body>
+</html>
